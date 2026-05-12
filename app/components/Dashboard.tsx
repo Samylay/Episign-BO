@@ -6,8 +6,8 @@ import { T } from '../lib/tokens';
 import { CodeBadge, ClassBadge, LiveBadge } from './CodeBadge';
 import { AppHeader } from './AppHeader';
 
-const TODAY = '2026-05-05';
-const TODAY_LABEL = 'Lundi 5 mai 2026';
+const TODAY = new Date().toISOString().split('T')[0];
+const TODAY_LABEL = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
 export function DashboardPage() {
   const { alerts, sessions } = useAppState();

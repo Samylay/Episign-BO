@@ -4,28 +4,43 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppState, type Role } from '../lib/state';
 import { T } from '../lib/tokens';
+import { supabase, getAuthRole } from '../lib/supabase';
 
 const ADMIN_EMAIL = 'admin@ecole.fr';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setRole, teachers, setCurrentTeacherId } = useAppState();
+  const { setRole, setCurrentTeacherId } = useAppState();
 
-  const [role, setLocalRole] = useState<Role>('admin');
-  const [teacherId, setTeacherId] = useState('t-dupont');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    setTimeout(() => {
-      setRole(role);
-      if (role === 'teacher') setCurrentTeacherId(teacherId);
-      router.push(role === 'admin' ? '/admin' : '/teacher');
-    }, 820);
+
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (authError || !data.user) {
+      setError(authError?.message ?? 'Identifiants incorrects');
+      setLoading(false);
+      return;
+    }
+
+    const roleInfo = await getAuthRole(data.user.id);
+    if (!roleInfo) {
+      setError('Compte non autorisé. Contactez un administrateur.');
+      await supabase.auth.signOut();
+      setLoading(false);
+      return;
+    }
+
+    setRole(roleInfo.role);
+    if (roleInfo.role === 'teacher') setCurrentTeacherId(roleInfo.profileId);
+    router.push(roleInfo.role === 'admin' ? '/admin' : '/teacher');
   };
 
   return (
@@ -429,49 +444,6 @@ export default function LoginPage() {
             <p className="form-sub">Accédez à votre espace Episign.</p>
 
             <form onSubmit={handleSubmit}>
-              {/* Role picker */}
-              <label className="field-label">Votre rôle</label>
-              <div className="role-grid" style={{ marginTop: 8 }}>
-                <button
-                  type="button"
-                  className={`role-card${role === 'admin' ? ' selected' : ''}`}
-                  onClick={() => setLocalRole('admin')}
-                >
-                  <div className="role-icon" style={{ background: role === 'admin' ? '#E8F0FC' : '#F4F6FA', color: '#1E4FD6' }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" /></svg>
-                  </div>
-                  <div className="role-title">Responsable</div>
-                  <div className="role-desc">Administration pédagogique</div>
-                </button>
-
-                <button
-                  type="button"
-                  className={`role-card${role === 'teacher' ? ' selected' : ''}`}
-                  onClick={() => setLocalRole('teacher')}
-                >
-                  <div className="role-icon" style={{ background: role === 'teacher' ? '#E8F0FC' : '#F4F6FA', color: '#1E4FD6' }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></svg>
-                  </div>
-                  <div className="role-title">Formateur</div>
-                  <div className="role-desc">Gestion de mes cours</div>
-                </button>
-              </div>
-
-              {/* Teacher selector */}
-              <div className={`teacher-row${role === 'teacher' ? ' visible' : ''}`}>
-                <label className="field-label">Compte formateur</label>
-                <select
-                  value={teacherId}
-                  onChange={(e) => setTeacherId(e.target.value)}
-                  className="epi-input"
-                  style={{ cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%238896AB' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center' }}
-                >
-                  {teachers.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name} — {t.email}</option>
-                  ))}
-                </select>
-              </div>
-
               {/* Email */}
               <div className="input-wrap">
                 <label className="field-label">Adresse e-mail</label>
@@ -479,15 +451,16 @@ export default function LoginPage() {
                   type="email"
                   className="epi-input"
                   style={{ marginTop: 8 }}
-                  placeholder={role === 'admin' ? ADMIN_EMAIL : teachers.find(t => t.id === teacherId)?.email ?? 'you@ecole.fr'}
+                  placeholder="vous@ecole.fr"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setError(''); }}
                   autoComplete="email"
                   autoFocus
+                  required
                 />
               </div>
 
-              {/* Password row (cosmetic) */}
+              {/* Password */}
               <div className="input-wrap" style={{ marginBottom: 28 }}>
                 <label className="field-label">Mot de passe</label>
                 <input
@@ -495,21 +468,24 @@ export default function LoginPage() {
                   className="epi-input"
                   style={{ marginTop: 8 }}
                   placeholder="••••••••"
-                  defaultValue="demo"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                  autoComplete="current-password"
+                  required
                 />
               </div>
 
               {error && <div className="error-msg">{error}</div>}
 
-              <button type="submit" className="submit-btn" disabled={loading}>
+              <button type="submit" className="submit-btn" disabled={loading || !email || !password}>
                 {loading ? <span className="spinner" /> : null}
                 {loading ? 'Connexion en cours…' : 'Se connecter'}
               </button>
             </form>
 
-            <div className="divider">Environnement de démonstration</div>
+            <div className="divider">Episign Back-Office</div>
             <p style={{ fontSize: 12, color: '#B0BCCC', textAlign: 'center', lineHeight: 1.6, margin: 0 }}>
-              Aucune donnée réelle n'est stockée. Utilisez n'importe quelle adresse e-mail.
+              Votre rôle (formateur ou responsable) est détecté automatiquement.
             </p>
           </div>
         </div>

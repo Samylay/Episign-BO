@@ -1,60 +1,91 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppState } from '../lib/state';
+import { supabase, fetchSessionStudents, type DbSessionStudent } from '../lib/supabase';
 import { generateStudents, type Session } from '../lib/mock-data';
 import { T } from '../lib/tokens';
 import { CodeBadge, ClassBadge, LiveBadge } from './CodeBadge';
 import { useToast } from './Toast';
 import { StatusBadge } from './StatusBadge';
 
-const TOTP_PERIOD = 30;
-
-function makeTotp(seed: number): string {
-  const n = (seed * 9301 + 49297) % 1_000_000;
-  return n.toString().padStart(6, '0');
-}
+const isRealSession = (id: string) => id.length > 8;
 
 export function TeacherLivePage({ session, onBack }: { session: Session; onBack: () => void }) {
   const { sessions, signatureFeed, setSessionStatus, pushSignature, bumpSignatureAM } = useAppState();
   const toast = useToast();
 
-  // Always read the latest version of this session from state (DevTools may bump signedAM)
   const live = sessions.find((s) => s.id === session.id) ?? session;
-
-  const isLive = live.status === 'in_progress';
+  const isLive     = live.status === 'in_progress';
   const isUpcoming = live.status === 'upcoming';
 
-  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  // Real attendance data (for DB sessions)
+  const [dbStudents, setDbStudents] = useState<DbSessionStudent[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+
+  const loadStudents = async () => {
+    if (!isRealSession(live.id)) return;
+    setLoadingStudents(true);
+    const data = await fetchSessionStudents(live.id);
+    setDbStudents(data);
+    setLoadingStudents(false);
+  };
+
   useEffect(() => {
-    if (!isLive) return;
-    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
-    return () => clearInterval(id);
-  }, [isLive]);
+    loadStudents();
+  }, [live.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const period = Math.floor(now / TOTP_PERIOD);
-  const remaining = TOTP_PERIOD - (now % TOTP_PERIOD);
-  const totpCode = useMemo(() => makeTotp(period + live.id * 7), [period, live.id]);
+  // Real-time subscription for attendance inserts
+  useEffect(() => {
+    if (!isRealSession(live.id) || !isLive) return;
 
-  const students = generateStudents(live.id, live.enrolled, live.signedAM, 0, live.classLabel);
-  const signed = students.filter((s) => s.signedAM);
-  const missing = students.filter((s) => !s.signedAM);
+    const channel = supabase
+      .channel(`attendance:${live.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'attendance', filter: `session_id=eq.${live.id}` },
+        (payload) => {
+          const row = payload.new as { student_id: string; slot: string };
+          const student = dbStudents.find((s) => s.student_id === row.student_id);
+          const name = student ? `${student.first_name} ${student.last_name}` : 'Apprenant';
+          pushSignature(live.id, name);
+          bumpSignatureAM(live.id);
+          loadStudents();
+        },
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [live.id, isLive, dbStudents]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mock students fallback (non-DB sessions)
+  const mockStudents = generateStudents(live.id, live.enrolled, live.signedAM, 0, live.classLabel);
+
+  const displayStudents = isRealSession(live.id) ? dbStudents : mockStudents;
+  const signedCount  = isRealSession(live.id)
+    ? dbStudents.filter((s) => s.am_status === 'present' || s.am_status === 'late').length
+    : mockStudents.filter((s) => s.signedAM).length;
+  const enrolledCount = isRealSession(live.id) ? dbStudents.length : live.enrolled;
+  const missingCount  = enrolledCount - signedCount;
 
   const myFeed = signatureFeed.filter((e) => e.sessionId === live.id).slice(0, 12);
 
   const start = () => {
     setSessionStatus(live.id, 'in_progress');
-    toast.push('Session démarrée — TOTP actif', 'success');
+    toast.push('Session démarrée', 'success');
   };
 
-  // DEV-ONLY: simulate one signature locally from this screen
   const simulate = () => {
-    const next = missing[0];
-    if (!next) return;
-    bumpSignatureAM(live.id);
-    pushSignature(live.id, next.name);
-    toast.push(`${next.name} a signé`, 'success');
+    if (!isRealSession(live.id)) {
+      const missing = mockStudents.filter((s) => !s.signedAM);
+      if (!missing[0]) return;
+      bumpSignatureAM(live.id);
+      pushSignature(live.id, missing[0].name);
+      toast.push(`${missing[0].name} a signé`, 'success');
+    }
   };
+
+  const cardCode = live.teacherCardCode ?? '——————';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -62,13 +93,12 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
         <span style={{ fontSize: 16, lineHeight: 1 }}>‹</span> Retour à mes sessions
       </button>
 
+      {/* Session header */}
       <div style={{ background: T.card, borderRadius: 16, padding: 24, boxShadow: T.shadowMd }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
           <CodeBadge code={live.code} />
           {isLive && <LiveBadge />}
-          {isUpcoming && (
-            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: T.warn, background: T.warnBg, padding: '3px 8px', borderRadius: 999 }}>À venir</span>
-          )}
+          {isUpcoming && <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: T.warn, background: T.warnBg, padding: '3px 8px', borderRadius: 999 }}>À venir</span>}
           <ClassBadge label={live.classLabel} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
@@ -85,60 +115,43 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 16 }}>
-        {/* TOTP card */}
-        <div style={{ background: T.card, borderRadius: 16, padding: 28, boxShadow: T.shadowMd, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 320, position: 'relative', overflow: 'hidden' }}>
+        {/* Teacher card code (replaces TOTP) */}
+        <div style={{ background: T.card, borderRadius: 16, padding: 28, boxShadow: T.shadowMd, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 280, position: 'relative', overflow: 'hidden' }}>
           {!isLive && (
-            <div style={{ position: 'absolute', inset: 0, background: 'rgba(244, 246, 250, 0.7)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
-              <span style={{ fontSize: 13, color: T.ink3, fontWeight: 600 }}>{isUpcoming ? "Démarrer la session pour activer le code" : 'Session terminée'}</span>
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(244,246,250,0.7)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
+              <span style={{ fontSize: 13, color: T.ink3, fontWeight: 600 }}>{isUpcoming ? 'Démarrez la session pour voir le code' : 'Session terminée'}</span>
             </div>
           )}
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: T.ink3, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>Code de signature</div>
-          <div
-            style={{
-              fontSize: 64, fontWeight: 800, color: T.ink, letterSpacing: '0.16em',
-              fontFamily: "'SF Mono', 'JetBrains Mono', 'Menlo', monospace",
-              fontVariantNumeric: 'tabular-nums',
-              padding: '12px 24px', background: T.bg, borderRadius: 14,
-              border: `1px solid ${T.hairline}`,
-            }}
-          >
-            {totpCode.slice(0, 3)} {totpCode.slice(3)}
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: T.ink3, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>Votre code formateur</div>
+          <div style={{ fontSize: 64, fontWeight: 800, color: T.ink, letterSpacing: '0.16em', fontFamily: "'SF Mono','JetBrains Mono','Menlo',monospace", fontVariantNumeric: 'tabular-nums', padding: '12px 24px', background: T.bg, borderRadius: 14, border: `1px solid ${T.hairline}` }}>
+            {cardCode.length === 6 ? `${cardCode.slice(0, 3)} ${cardCode.slice(3)}` : cardCode}
           </div>
-          <div style={{ marginTop: 24, width: '70%' }}>
-            <div style={{ height: 6, borderRadius: 3, background: T.chip, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${(remaining / TOTP_PERIOD) * 100}%`, background: remaining <= 5 ? T.danger : T.brand, transition: 'width 1s linear' }} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11.5, color: T.muted, fontVariantNumeric: 'tabular-nums' }}>
-              <span>Renouvelé toutes les {TOTP_PERIOD}s</span>
-              <span>{remaining}s</span>
-            </div>
-          </div>
-          <p style={{ fontSize: 12, color: T.muted, marginTop: 16, textAlign: 'center', maxWidth: 360, lineHeight: 1.5 }}>
-            Les apprenants saisissent ce code dans l'application Episign pour signer.
+          <p style={{ fontSize: 12.5, color: T.muted, marginTop: 20, textAlign: 'center', maxWidth: 340, lineHeight: 1.55 }}>
+            Les apprenants saisissent ce code dans l'application Episign lors de la signature de présence. Ce code est permanent et lié à votre compte.
           </p>
         </div>
 
-        {/* Counter + recent feed */}
+        {/* Counter + feed */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ background: T.card, borderRadius: 16, padding: 24, boxShadow: T.shadowMd }}>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: T.ink3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Signatures reçues</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <span style={{ fontSize: 48, fontWeight: 800, color: T.ink, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.03em', lineHeight: 1 }}>{live.signedAM}</span>
-              <span style={{ fontSize: 22, fontWeight: 600, color: T.muted, fontVariantNumeric: 'tabular-nums' }}>/ {live.enrolled}</span>
+              <span style={{ fontSize: 48, fontWeight: 800, color: T.ink, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.03em', lineHeight: 1 }}>{signedCount}</span>
+              <span style={{ fontSize: 22, fontWeight: 600, color: T.muted, fontVariantNumeric: 'tabular-nums' }}>/ {enrolledCount}</span>
             </div>
             <div style={{ height: 8, borderRadius: 4, background: T.chip, marginTop: 14, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${(live.signedAM / live.enrolled) * 100}%`, background: T.success, transition: 'width 0.5s ease-out' }} />
+              <div style={{ height: '100%', width: `${enrolledCount > 0 ? (signedCount / enrolledCount) * 100 : 0}%`, background: T.success, transition: 'width 0.5s ease-out' }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 12, color: T.ink3 }}>
-              <span><strong style={{ color: T.success }}>{signed.length}</strong> signés</span>
-              <span><strong style={{ color: T.danger }}>{missing.length}</strong> en attente</span>
+              <span><strong style={{ color: T.success }}>{signedCount}</strong> signés</span>
+              <span><strong style={{ color: T.danger }}>{missingCount}</strong> en attente</span>
             </div>
           </div>
 
-          <div style={{ background: T.card, borderRadius: 16, padding: 20, boxShadow: T.shadowMd, flex: 1, minHeight: 160 }}>
+          <div style={{ background: T.card, borderRadius: 16, padding: 20, boxShadow: T.shadowMd, flex: 1, minHeight: 120 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
               <h3 style={{ fontSize: 13.5, fontWeight: 600, color: T.ink, margin: 0 }}>Arrivées récentes</h3>
-              {isLive && missing.length > 0 && (
+              {!isRealSession(live.id) && isLive && missingCount > 0 && (
                 <button onClick={simulate} title="DEV — simuler une signature" style={{ padding: '4px 10px', borderRadius: 6, border: `1px dashed ${T.hairline}`, background: 'transparent', fontSize: 11, color: T.muted, cursor: 'pointer', fontFamily: 'inherit' }}>+ Simuler</button>
               )}
             </div>
@@ -161,24 +174,38 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
         </div>
       </div>
 
+      {/* Roster */}
       <div style={{ background: T.card, borderRadius: 14, boxShadow: T.shadowMd, overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: `1px solid ${T.hairline}` }}>
           <h3 style={{ fontSize: 14.5, fontWeight: 600, color: T.ink, margin: 0 }}>Liste d'émargement</h3>
-          <p style={{ fontSize: 11.5, color: T.muted, margin: '2px 0 0' }}>{live.enrolled} apprenants inscrits</p>
+          <p style={{ fontSize: 11.5, color: T.muted, margin: '2px 0 0' }}>
+            {loadingStudents ? 'Chargement…' : `${enrolledCount} apprenants inscrits`}
+          </p>
         </div>
         <table className="epi-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${T.hairline}` }}>
-              {['Apprenant', 'Email', 'Statut'].map((h, i) => (
+              {['Apprenant', 'Email', 'Classe', 'Statut'].map((h, i) => (
                 <th key={i} style={{ padding: '11px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: T.ink3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {students.map((st) => (
+            {isRealSession(live.id) ? dbStudents.map((st) => {
+              const signed = st.am_status === 'present' || st.am_status === 'late';
+              return (
+                <tr key={st.student_id} style={{ borderBottom: `1px solid ${T.hairlineSoft}` }}>
+                  <td style={{ padding: '11px 16px', fontWeight: 600, color: T.ink }}>{st.first_name} {st.last_name}</td>
+                  <td style={{ padding: '11px 16px', color: T.ink3, fontSize: 13 }}>{st.email}</td>
+                  <td style={{ padding: '11px 16px', color: T.ink3, fontSize: 13 }}>{st.class_label}</td>
+                  <td style={{ padding: '11px 16px' }}><StatusBadge status={signed ? 'signed' : 'missing'} /></td>
+                </tr>
+              );
+            }) : mockStudents.map((st) => (
               <tr key={st.id} style={{ borderBottom: `1px solid ${T.hairlineSoft}` }}>
                 <td style={{ padding: '11px 16px', fontWeight: 600, color: T.ink }}>{st.name}</td>
                 <td style={{ padding: '11px 16px', color: T.ink3, fontSize: 13 }}>{st.email}</td>
+                <td style={{ padding: '11px 16px', color: T.ink3, fontSize: 13 }}>{st.classLabel}</td>
                 <td style={{ padding: '11px 16px' }}><StatusBadge status={st.signedAM ? 'signed' : 'missing'} /></td>
               </tr>
             ))}

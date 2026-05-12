@@ -25,7 +25,7 @@ export const PROMOTIONS: Promotion[] = [];
 
 export type SessionStatus = 'in_progress' | 'upcoming' | 'completed';
 export type Session = {
-  id: number;
+  id: string;
   code: string;
   course: string;
   teacher: string;
@@ -39,17 +39,21 @@ export type Session = {
   enrolled: number;
   signedAM: number;
   signedPM: number;
+  // Populated for real DB sessions:
+  teacherCardCode?: string;
+  startsAt?: string;
+  endsAt?: string;
 };
 
 export const MOCK_SESSIONS: Session[] = [
-  { id: 1, code: 'IOS-402', course: 'Développement iOS — SwiftUI', teacher: 'M. Dupont', teacherId: 't-dupont', room: 'A201', date: '2026-05-05', timeRange: '09:00 – 12:30', slot: 'morning', status: 'in_progress', classLabel: 'APPING2 DEV 1', enrolled: 24, signedAM: 21, signedPM: 0 },
-  { id: 2, code: 'ARCH-301', course: 'Architecture logicielle', teacher: 'Mme Berger', teacherId: 't-berger', room: 'B105', date: '2026-05-05', timeRange: '09:00 – 12:30', slot: 'morning', status: 'in_progress', classLabel: 'ING3 CYBER 1', enrolled: 18, signedAM: 18, signedPM: 0 },
-  { id: 3, code: 'UX-310', course: 'UX Design avancé', teacher: 'M. Martin', teacherId: 't-martin', room: 'C302', date: '2026-05-05', timeRange: '14:00 – 17:30', slot: 'afternoon', status: 'upcoming', classLabel: 'APPING1 DEV 2', enrolled: 22, signedAM: 0, signedPM: 0 },
-  { id: 4, code: 'DB-220', course: 'Base de données — PostgreSQL', teacher: 'Mme Petit', teacherId: 't-petit', room: 'A105', date: '2026-05-04', timeRange: '09:00 – 17:00', slot: 'full', status: 'completed', classLabel: 'ING2 DEV 1', enrolled: 20, signedAM: 19, signedPM: 18 },
-  { id: 5, code: 'PRJ-501', course: 'Projet tutoré M1', teacher: 'M. Leroy', teacherId: 't-leroy', room: 'Lab1', date: '2026-05-04', timeRange: '09:00 – 12:30', slot: 'morning', status: 'completed', classLabel: 'ING4 CYBER 2', enrolled: 15, signedAM: 14, signedPM: 0 },
-  { id: 6, code: 'SEC-410', course: 'Sécurité des systèmes', teacher: 'M. Moreau', teacherId: 't-moreau', room: 'A201', date: '2026-05-03', timeRange: '09:00 – 17:00', slot: 'full', status: 'completed', classLabel: 'APPING3 CYBER 1', enrolled: 22, signedAM: 20, signedPM: 19 },
-  { id: 7, code: 'IOS-403', course: 'Combine & Async iOS', teacher: 'M. Dupont', teacherId: 't-dupont', room: 'A201', date: '2026-05-06', timeRange: '14:00 – 17:30', slot: 'afternoon', status: 'upcoming', classLabel: 'APPING2 DEV 1', enrolled: 24, signedAM: 0, signedPM: 0 },
-  { id: 8, code: 'IOS-401', course: 'Introduction à Swift', teacher: 'M. Dupont', teacherId: 't-dupont', room: 'A201', date: '2026-05-02', timeRange: '09:00 – 12:30', slot: 'morning', status: 'completed', classLabel: 'APPING2 DEV 1', enrolled: 24, signedAM: 22, signedPM: 0 },
+  { id: '1', code: 'IOS-402', course: 'Développement iOS — SwiftUI', teacher: 'M. Dupont', teacherId: 't-dupont', room: 'A201', date: '2026-05-05', timeRange: '09:00 – 12:30', slot: 'morning', status: 'in_progress', classLabel: 'APPING2 DEV 1', enrolled: 24, signedAM: 21, signedPM: 0 },
+  { id: '2', code: 'ARCH-301', course: 'Architecture logicielle', teacher: 'Mme Berger', teacherId: 't-berger', room: 'B105', date: '2026-05-05', timeRange: '09:00 – 12:30', slot: 'morning', status: 'in_progress', classLabel: 'ING3 CYBER 1', enrolled: 18, signedAM: 18, signedPM: 0 },
+  { id: '3', code: 'UX-310', course: 'UX Design avancé', teacher: 'M. Martin', teacherId: 't-martin', room: 'C302', date: '2026-05-05', timeRange: '14:00 – 17:30', slot: 'afternoon', status: 'upcoming', classLabel: 'APPING1 DEV 2', enrolled: 22, signedAM: 0, signedPM: 0 },
+  { id: '4', code: 'DB-220', course: 'Base de données — PostgreSQL', teacher: 'Mme Petit', teacherId: 't-petit', room: 'A105', date: '2026-05-04', timeRange: '09:00 – 17:00', slot: 'full', status: 'completed', classLabel: 'ING2 DEV 1', enrolled: 20, signedAM: 19, signedPM: 18 },
+  { id: '5', code: 'PRJ-501', course: 'Projet tutoré M1', teacher: 'M. Leroy', teacherId: 't-leroy', room: 'Lab1', date: '2026-05-04', timeRange: '09:00 – 12:30', slot: 'morning', status: 'completed', classLabel: 'ING4 CYBER 2', enrolled: 15, signedAM: 14, signedPM: 0 },
+  { id: '6', code: 'SEC-410', course: 'Sécurité des systèmes', teacher: 'M. Moreau', teacherId: 't-moreau', room: 'A201', date: '2026-05-03', timeRange: '09:00 – 17:00', slot: 'full', status: 'completed', classLabel: 'APPING3 CYBER 1', enrolled: 22, signedAM: 20, signedPM: 19 },
+  { id: '7', code: 'IOS-403', course: 'Combine & Async iOS', teacher: 'M. Dupont', teacherId: 't-dupont', room: 'A201', date: '2026-05-06', timeRange: '14:00 – 17:30', slot: 'afternoon', status: 'upcoming', classLabel: 'APPING2 DEV 1', enrolled: 24, signedAM: 0, signedPM: 0 },
+  { id: '8', code: 'IOS-401', course: 'Introduction à Swift', teacher: 'M. Dupont', teacherId: 't-dupont', room: 'A201', date: '2026-05-02', timeRange: '09:00 – 12:30', slot: 'morning', status: 'completed', classLabel: 'APPING2 DEV 1', enrolled: 24, signedAM: 22, signedPM: 0 },
 ];
 
 export const STUDENT_NAMES = [
@@ -74,9 +78,9 @@ export type StudentRow = {
   classLabel: string;
 };
 
-export function generateStudents(sessionId: number, enrolled: number, signedAM: number, signedPM: number, classLabel?: string): StudentRow[] {
+export function generateStudents(sessionId: string, enrolled: number, signedAM: number, signedPM: number, classLabel?: string): StudentRow[] {
   return STUDENT_NAMES.slice(0, enrolled).map((name, i) => ({
-    id: sessionId * 100 + i,
+    id: i,
     name,
     email: name.toLowerCase().replace(' ', '.') + '@ecole.fr',
     signedAM: i < signedAM,

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { generateStudents, type Session, type StudentRow } from '../lib/mock-data';
+import { supabase, fetchSessionStudents, type DbSessionStudent } from '../lib/supabase';
 import { useAppState, cellKeyOf, type AuditEntry } from '../lib/state';
 import { StatusBadge } from './StatusBadge';
 import { Modal } from './Modal';
@@ -11,19 +12,59 @@ import { useToast } from './Toast';
 
 type Slot = 'am' | 'pm';
 
+const isRealSession = (id: string) => id.length > 8;
+
+type RealStudent = DbSessionStudent & { rowIndex: number };
+
+function dbToStudentRow(st: DbSessionStudent, i: number): StudentRow {
+  return {
+    id: i,
+    name: `${st.first_name} ${st.last_name}`,
+    email: st.email,
+    signedAM: st.am_status === 'present' || st.am_status === 'late',
+    signedPM: st.pm_status === 'present' || st.pm_status === 'late',
+    classLabel: st.class_label,
+  };
+}
+
 export function SessionDetailPage({ session, onBack }: { session: Session; onBack: () => void }) {
   const { invalidations, invalidate, justifications, justify, audit } = useAppState();
   const toast = useToast();
-  const students = generateStudents(session.id, session.enrolled, session.signedAM, session.signedPM, session.classLabel);
 
-  const [invalidateTarget, setInvalidateTarget] = useState<{ st: StudentRow; slot: Slot } | null>(null);
-  const [justifyTarget, setJustifyTarget] = useState<{ st: StudentRow; slot: Slot } | null>(null);
+  const [dbStudents,    setDbStudents]    = useState<RealStudent[]>([]);
+  const [loadingDb,     setLoadingDb]     = useState(false);
+  const [invalidateTarget, setInvalidateTarget] = useState<{ st: StudentRow; slot: Slot; dbId?: string } | null>(null);
+  const [justifyTarget, setJustifyTarget] = useState<{ st: StudentRow; slot: Slot; dbId?: string } | null>(null);
   const [viewSignature, setViewSignature] = useState<{ st: StudentRow; slot: Slot } | null>(null);
   const [studentSearch, setStudentSearch] = useState('');
 
+  const real = isRealSession(session.id);
+
+  useEffect(() => {
+    if (!real) return;
+    setLoadingDb(true);
+    fetchSessionStudents(session.id).then((rows) => {
+      setDbStudents(rows.map((r, i) => ({ ...r, rowIndex: i })));
+      setLoadingDb(false);
+    });
+  }, [session.id, real]);
+
+  const students: StudentRow[] = real
+    ? dbStudents.map((s) => dbToStudentRow(s, s.rowIndex))
+    : generateStudents(session.id, session.enrolled, session.signedAM, session.signedPM, session.classLabel);
+
   const sessionAudit = audit.filter((a) => a.sessionId === session.id);
 
+  const dbStatusOf = (st: StudentRow, slot: Slot): string | null => {
+    if (!real) return null;
+    const db = dbStudents[st.id];
+    return slot === 'am' ? (db?.am_status ?? null) : (db?.pm_status ?? null);
+  };
+
   const cellStatus = (st: StudentRow, slot: Slot): 'signed' | 'missing' | 'invalidated' | 'justified' => {
+    const dbStatus = dbStatusOf(st, slot);
+    if (dbStatus === 'absent_unjustified') return 'invalidated';
+    if (dbStatus === 'absent_justified')   return 'justified';
     const k = cellKeyOf(session.id, st.id, slot);
     if (invalidations[k]) return 'invalidated';
     if (justifications[k]) return 'justified';
@@ -34,8 +75,12 @@ export function SessionDetailPage({ session, onBack }: { session: Session; onBac
     ? students.filter((s) => s.name.toLowerCase().includes(studentSearch.toLowerCase()) || s.email.toLowerCase().includes(studentSearch.toLowerCase()))
     : students;
 
-  const amPct = Math.round((session.signedAM / session.enrolled) * 100);
-  const pmPct = Math.round((session.signedPM / session.enrolled) * 100);
+  const signedAM = real ? dbStudents.filter((s) => s.am_status === 'present' || s.am_status === 'late').length : session.signedAM;
+  const signedPM = real ? dbStudents.filter((s) => s.pm_status === 'present' || s.pm_status === 'late').length : session.signedPM;
+  const enrolled = real ? dbStudents.length : session.enrolled;
+
+  const amPct = enrolled > 0 ? Math.round((signedAM / enrolled) * 100) : 0;
+  const pmPct = enrolled > 0 ? Math.round((signedPM / enrolled) * 100) : 0;
 
   return (
     <div>
@@ -66,9 +111,9 @@ export function SessionDetailPage({ session, onBack }: { session: Session; onBac
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 16 }}>
-        <StatCard label="Inscrits" value={String(session.enrolled)} />
-        <StatCard label="Signatures matin" value={`${session.signedAM}/${session.enrolled}`} pct={amPct} />
-        <StatCard label="Signatures après-midi" value={`${session.signedPM}/${session.enrolled}`} pct={pmPct} />
+        <StatCard label="Inscrits" value={loadingDb ? '…' : String(enrolled)} />
+        <StatCard label="Signatures matin" value={loadingDb ? '…' : `${signedAM}/${enrolled}`} pct={amPct} />
+        <StatCard label="Signatures après-midi" value={loadingDb ? '…' : `${signedPM}/${enrolled}`} pct={pmPct} />
       </div>
 
       <div style={{ background: T.card, borderRadius: 14, boxShadow: T.shadowMd, overflow: 'hidden', marginBottom: 16 }}>
@@ -111,8 +156,8 @@ export function SessionDetailPage({ session, onBack }: { session: Session; onBac
                       amStatus={amStatus}
                       pmStatus={pmStatus}
                       slot={session.slot}
-                      onInvalidate={(slot) => setInvalidateTarget({ st, slot })}
-                      onJustify={(slot) => setJustifyTarget({ st, slot })}
+                      onInvalidate={(slot) => setInvalidateTarget({ st, slot, dbId: real ? dbStudents[st.id]?.student_id : undefined })}
+                      onJustify={(slot) => setJustifyTarget({ st, slot, dbId: real ? dbStudents[st.id]?.student_id : undefined })}
                     />
                   </td>
                 </tr>
@@ -130,8 +175,21 @@ export function SessionDetailPage({ session, onBack }: { session: Session; onBac
           description={<>Signature {invalidateTarget.slot === 'am' ? 'du matin' : "de l'après-midi"} de <strong>{invalidateTarget.st.name}</strong>. Cette action sera tracée dans le journal d'audit.</>}
           confirmLabel="Confirmer l'invalidation"
           confirmColor={T.danger}
-          onConfirm={(reason) => {
-            invalidate({ studentId: invalidateTarget.st.id, studentName: invalidateTarget.st.name, sessionId: session.id, sessionLabel: session.course, slot: invalidateTarget.slot, reason });
+          onConfirm={async (reason) => {
+            if (real && invalidateTarget.dbId) {
+              const { error } = await supabase.rpc('moderate_attendance', {
+                p_session_id: session.id,
+                p_student_id: invalidateTarget.dbId,
+                p_slot: invalidateTarget.slot,
+                p_action: 'invalidated',
+                p_reason: reason,
+              });
+              if (error) { toast.push(`Erreur: ${error.message}`, 'danger'); return; }
+              const rows = await fetchSessionStudents(session.id);
+              setDbStudents(rows.map((r, i) => ({ ...r, rowIndex: i })));
+            } else {
+              invalidate({ studentId: invalidateTarget.st.id, studentName: invalidateTarget.st.name, sessionId: session.id, sessionLabel: session.course, slot: invalidateTarget.slot, reason });
+            }
             toast.push(`Signature invalidée — ${invalidateTarget.st.name}`, 'warn');
             setInvalidateTarget(null);
           }}
@@ -145,8 +203,21 @@ export function SessionDetailPage({ session, onBack }: { session: Session; onBac
           description={<>Absence {justifyTarget.slot === 'am' ? 'du matin' : "de l'après-midi"} de <strong>{justifyTarget.st.name}</strong>. La justification sera tracée dans le journal d'audit.</>}
           confirmLabel="Enregistrer la justification"
           confirmColor={T.brand}
-          onConfirm={(reason) => {
-            justify({ studentId: justifyTarget.st.id, studentName: justifyTarget.st.name, sessionId: session.id, sessionLabel: session.course, slot: justifyTarget.slot, reason });
+          onConfirm={async (reason) => {
+            if (real && justifyTarget.dbId) {
+              const { error } = await supabase.rpc('moderate_attendance', {
+                p_session_id: session.id,
+                p_student_id: justifyTarget.dbId,
+                p_slot: justifyTarget.slot,
+                p_action: 'justified',
+                p_reason: reason,
+              });
+              if (error) { toast.push(`Erreur: ${error.message}`, 'danger'); return; }
+              const rows = await fetchSessionStudents(session.id);
+              setDbStudents(rows.map((r, i) => ({ ...r, rowIndex: i })));
+            } else {
+              justify({ studentId: justifyTarget.st.id, studentName: justifyTarget.st.name, sessionId: session.id, sessionLabel: session.course, slot: justifyTarget.slot, reason });
+            }
             toast.push(`Absence justifiée — ${justifyTarget.st.name}`, 'success');
             setJustifyTarget(null);
           }}

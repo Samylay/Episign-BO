@@ -8,14 +8,16 @@ import { CodeBadge, ClassBadge, LiveBadge } from './CodeBadge';
 import { AppHeader } from './AppHeader';
 import { ProgressBar } from './ProgressBar';
 import { EmptyState } from './Modal';
+import { CreateSessionModal } from './CreateSessionModal';
 
-const TODAY = '2026-05-05';
+const TODAY = new Date().toISOString().split('T')[0];
 
 type Tab = 'today' | 'upcoming' | 'past';
 
 export function TeacherSessionsPage({ onOpen }: { onOpen: (s: Session) => void }) {
   const { sessions, currentTeacherId } = useAppState();
   const [tab, setTab] = useState<Tab>('today');
+  const [showCreate, setShowCreate] = useState(false);
 
   const mine = sessions.filter((s) => s.teacherId === currentTeacherId);
   const today = mine.filter((s) => s.date === TODAY);
@@ -31,8 +33,21 @@ export function TeacherSessionsPage({ onOpen }: { onOpen: (s: Session) => void }
   ];
 
   return (
+    <>
+    {showCreate && <CreateSessionModal onClose={() => setShowCreate(false)} preselectedTeacherId={currentTeacherId} />}
     <div>
-      <AppHeader title="Mes sessions" subtitle={`${mine.length} sessions assignées`} />
+      <AppHeader
+        title="Mes sessions"
+        subtitle={`${mine.length} sessions assignées`}
+        actions={
+          <button
+            onClick={() => setShowCreate(true)}
+            style={{ padding: '9px 18px', borderRadius: 10, border: 'none', background: T.brand, color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(30,79,214,0.25)' }}
+          >
+            + Nouvelle session
+          </button>
+        }
+      />
 
       <div style={{ display: 'inline-flex', background: T.card, border: `1px solid ${T.hairline}`, borderRadius: 10, padding: 3, marginBottom: 16, boxShadow: T.shadowSm }}>
         {tabs.map(([k, l, count]) => (
@@ -55,6 +70,7 @@ export function TeacherSessionsPage({ onOpen }: { onOpen: (s: Session) => void }
         </div>
       )}
     </div>
+    </>
   );
 }
 

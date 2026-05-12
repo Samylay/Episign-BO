@@ -8,11 +8,12 @@ import { EmptyState } from './Modal';
 import { T } from '../lib/tokens';
 import { CodeBadge, ClassBadge, LiveBadge } from './CodeBadge';
 import { AppHeader } from './AppHeader';
+import { CreateSessionModal } from './CreateSessionModal';
 
 const statusLabel: Record<SessionStatus, string> = { in_progress: 'En cours', upcoming: 'À venir', completed: 'Terminée' };
 const statusColor: Record<SessionStatus, string> = { in_progress: T.success, upcoming: T.warn, completed: T.muted };
 
-const TODAY = '2026-05-05';
+const TODAY = new Date().toISOString().split('T')[0];
 
 type RangeFilter = 'all' | 'day' | 'week' | 'month';
 type StatusFilter = 'all' | SessionStatus;
@@ -34,6 +35,7 @@ export function SessionsPage({ onViewSession }: { onViewSession: (s: Session) =>
   const [status, setStatus] = useState<StatusFilter>('all');
   const [promoFilter, setPromoFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
 
   const filtered = sessions.filter((s) => {
     if (!withinRange(s.date, range)) return false;
@@ -65,11 +67,18 @@ export function SessionsPage({ onViewSession }: { onViewSession: (s: Session) =>
   const selectStyle: React.CSSProperties = { padding: '8px 12px', borderRadius: 8, border: `1px solid ${T.hairline}`, fontSize: 13, fontFamily: 'inherit', color: T.ink2, background: T.card, cursor: 'pointer', boxShadow: T.shadowSm };
 
   return (
+    <>
+    {showCreate && <CreateSessionModal onClose={() => setShowCreate(false)} />}
     <div>
       <AppHeader
         title="Sessions"
         subtitle={`${filtered.length} sur ${sessions.length} sessions`}
-        actions={<input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher (code, formation, formateur, salle)..." style={{ padding: '9px 14px', borderRadius: 10, border: `1px solid ${T.hairline}`, fontSize: 13.5, width: 320, fontFamily: 'inherit', outline: 'none', background: T.card, boxShadow: T.shadowSm }} />}
+        actions={
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher (code, formation, formateur, salle)..." style={{ padding: '9px 14px', borderRadius: 10, border: `1px solid ${T.hairline}`, fontSize: 13.5, width: 280, fontFamily: 'inherit', outline: 'none', background: T.card, boxShadow: T.shadowSm }} />
+            <button onClick={() => setShowCreate(true)} style={{ padding: '9px 18px', borderRadius: 10, border: 'none', background: T.brand, color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(30,79,214,0.25)' }}>+ Nouvelle session</button>
+          </div>
+        }
       />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -131,5 +140,6 @@ export function SessionsPage({ onViewSession }: { onViewSession: (s: Session) =>
         )}
       </div>
     </div>
+    </>
   );
 }
