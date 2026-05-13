@@ -13,6 +13,53 @@ The demo covers three roles. Student is fully detailed — teacher and admin are
 
 ---
 
+## Current Limitations
+
+These are known issues as of the time of writing. Each has a workaround noted — nothing is a hard blocker for the demo, but they all require action before presenting.
+
+### 🔴 Blockers (must fix before demo)
+
+| # | Issue | Impact | Fix |
+|---|---|---|---|
+| 1 | **ForgeID OAuth redirect not registered** — `episign://callback` is not an allowed redirect URI for client `assistants-atelier-js` | Real sign-in shows "Redirect URI Error"; login fails | Use **"Skip login (dev)"** button (debug builds only). Long-term: email `tickets@forge.epita.fr` to register the URI |
+| 2 | **`samy.layaida` not in the `students` table** — mock login bypasses `upsert_student`, so forge_login is unknown to Supabase | `submit_attendance` RPC rejects the request → check-in step 3 always fails | Run this in Supabase SQL editor before the demo: `INSERT INTO students (forge_login, first_name, last_name, email, card_code) VALUES ('samy.layaida', 'Samy', 'Layaida', 'samy.layaida@epita.fr', '123456');` then assign to a class that has an active session |
+| 3 | **All existing sessions are past their time window** — IOS-402 and ARCH-301 ended 2026-05-12; test session "A" also ended | Dashboard shows no live sessions; check-in is impossible | Create a new session in the BO timed to the demo window (e.g. starts 10 min before, ends 2 h after). Assign it to the class samy.layaida is enrolled in |
+| 4 | **Teacher BO password unknown** — `teacher@episign.fr` account was created by Axel; password was not shared | Cannot log in as teacher on the BO | Confirm password with Axel, or reset via Supabase Dashboard → Authentication → Users |
+
+### 🟡 Needs verification before demo
+
+| # | Issue | Impact | Fix |
+|---|---|---|---|
+| 5 | **Supabase realtime not verified** — the `attendance` table may not have replication enabled | Live feed in teacher view won't update when a student signs | Supabase Dashboard → Table Editor → `attendance` → Replication → enable **INSERT** |
+| 6 | **Test session "A"** — junk row with course/room both set to "A" | Pollutes the sessions list in the BO | Delete via Supabase Dashboard → Table Editor → `sessions` |
+| 7 | **Alerts table is empty** — no timing-fraud data exists yet | Admin alerts view shows nothing | Either leave as empty state, or insert a test alert row manually for the demo |
+
+### 🟠 Known constraints (not fixable without EPITA action)
+
+| # | Issue | Impact | Workaround |
+|---|---|---|---|
+| 8 | **Provisioning profile expires 2026-05-20** — personal Apple team cert, 7-day TTL | App stops launching on device after that date | Rebuild before the demo: `xcodebuild` command in the iOS repo README, or open Xcode and hit Cmd+R |
+| 9 | **iOS bundle ID is `com.samylayaida.episign`** — should be `fr.epita.episign` for production | OAuth callback URL name mismatch (non-blocking for demo; scheme `episign://` still works) | Acceptable for demo. Fix when EPITA registers a production OAuth client |
+| 10 | **NFC removed from check-in flow** — teacher code is now typed manually | Teacher must read out their 6-digit code; no tap-to-verify | By design for the demo. NFC can be re-added post-demo with a registered entitlement |
+
+---
+
+## Pre-Demo Checklist
+
+Run through this the day before the presentation:
+
+- [ ] Confirm teacher BO password with Axel (or reset in Supabase)
+- [ ] Add `samy.layaida` to the `students` table with a known `card_code`
+- [ ] Assign `samy.layaida` to a class (e.g. APPING2-DEV-1)
+- [ ] Create a new session in the BO covering the demo time window, assigned to that class
+- [ ] Enable realtime on the `attendance` table in Supabase
+- [ ] Delete the test session "A" from the DB
+- [ ] Rebuild the iOS app if the date is past 2026-05-20 (provisioning expires)
+- [ ] On both demo devices: Settings → General → VPN & Device Management → Trust the developer profile
+- [ ] Dry-run the full student check-in flow end-to-end at least once
+
+---
+
 ## Pre-Demo Setup
 
 ### Accounts
