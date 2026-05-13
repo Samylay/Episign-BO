@@ -30,7 +30,7 @@ export default function LoginPage() {
       return;
     }
 
-    const roleInfo = await getAuthRole(data.user.id);
+    const roleInfo = await getAuthRole(data.user.id, data.user.email ?? undefined);
     if (!roleInfo) {
       setError('Compte non autorisé. Contactez un administrateur.');
       await supabase.auth.signOut();

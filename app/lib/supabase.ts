@@ -91,13 +91,33 @@ export type DbAlertDetail = {
 
 // ---- Auth helpers ----
 
-export async function getAuthRole(userId: string): Promise<{ role: 'admin' | 'teacher'; profileId: string } | null> {
-  const [{ data: admin }, { data: teacher }] = await Promise.all([
+export async function getAuthRole(userId: string, email?: string): Promise<{ role: 'admin' | 'teacher'; profileId: string } | null> {
+  const [{ data: admin, error: adminErr }, { data: teacher, error: teacherErr }] = await Promise.all([
     supabase.from('admins').select('id').eq('auth_user_id', userId).maybeSingle(),
     supabase.from('teachers').select('id').eq('auth_user_id', userId).maybeSingle(),
   ]);
+  if (adminErr) console.error('getAuthRole admins:', adminErr);
+  if (teacherErr) console.error('getAuthRole teachers:', teacherErr);
+
   if (admin) return { role: 'admin', profileId: admin.id };
   if (teacher) return { role: 'teacher', profileId: teacher.id };
+
+  // Fallback: look up by email and auto-link auth_user_id
+  if (email) {
+    const [{ data: adminByEmail }, { data: teacherByEmail }] = await Promise.all([
+      supabase.from('admins').select('id').eq('email', email).maybeSingle(),
+      supabase.from('teachers').select('id').eq('email', email).maybeSingle(),
+    ]);
+    if (adminByEmail) {
+      await supabase.from('admins').update({ auth_user_id: userId }).eq('id', adminByEmail.id);
+      return { role: 'admin', profileId: adminByEmail.id };
+    }
+    if (teacherByEmail) {
+      await supabase.from('teachers').update({ auth_user_id: userId }).eq('id', teacherByEmail.id);
+      return { role: 'teacher', profileId: teacherByEmail.id };
+    }
+  }
+
   return null;
 }
 
