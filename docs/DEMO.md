@@ -24,7 +24,7 @@ These are known issues as of the time of writing. Each has a workaround noted �
 | 1 | **ForgeID OAuth redirect not registered** — `episign://callback` is not an allowed redirect URI for client `assistants-atelier-js` | Real sign-in shows "Redirect URI Error"; login fails | Use **"Skip login (dev)"** button (debug builds only). Long-term: email `tickets@forge.epita.fr` to register the URI |
 | 2 | **`samy.layaida` not in the `students` table** — mock login bypasses `upsert_student`, so forge_login is unknown to Supabase | `submit_attendance` RPC rejects the request → check-in step 3 always fails | Run this in Supabase SQL editor before the demo: `INSERT INTO students (forge_login, first_name, last_name, email, card_code) VALUES ('samy.layaida', 'Samy', 'Layaida', 'samy.layaida@epita.fr', '123456');` then assign to a class that has an active session |
 | 3 | **All existing sessions are past their time window** — IOS-402 and ARCH-301 ended 2026-05-12; test session "A" also ended | Dashboard shows no live sessions; check-in is impossible | Create a new session in the BO timed to the demo window (e.g. starts 10 min before, ends 2 h after). Assign it to the class samy.layaida is enrolled in |
-| 4 | **Teacher BO password unknown** — `teacher@episign.fr` account was created by Axel; password was not shared | Cannot log in as teacher on the BO | Confirm password with Axel, or reset via Supabase Dashboard → Authentication → Users |
+| 4 | ~~**Teacher BO password unknown**~~ — resolved | — | `teacher@episign.fr` / `Episign@2026` |
 
 ### 🟡 Needs verification before demo
 
@@ -48,7 +48,7 @@ These are known issues as of the time of writing. Each has a workaround noted �
 
 Run through this the day before the presentation:
 
-- [ ] Confirm teacher BO password with Axel (or reset in Supabase)
+- [x] Confirm teacher BO password — `teacher@episign.fr` / `Episign@2026`
 - [ ] Add `samy.layaida` to the `students` table with a known `card_code`
 - [ ] Assign `samy.layaida` to a class (e.g. APPING2-DEV-1)
 - [ ] Create a new session in the BO covering the demo time window, assigned to that class
@@ -67,8 +67,8 @@ Run through this the day before the presentation:
 | Role | Platform | Credentials |
 |---|---|---|
 | Student | iOS App (ForgeID) | `samy.layaida` / ForgeID password |
-| Teacher | Back Office | `teacher@epita.fr` / *(set in Supabase Auth)* |
-| Admin | Back Office | `admin@epita.fr` / *(set in Supabase Auth)* |
+| Teacher | Back Office | `teacher@episign.fr` / `Episign@2026` |
+| Admin | Back Office | `admin@episign.fr` / *(reset in Supabase if needed)* |
 
 > **Supabase setup required:** Teacher and admin accounts must exist in Supabase Auth **and** have a matching row in the `teachers` or `admins` table with `auth_user_id` set. Create them via the Supabase dashboard → Authentication → Users.
 
