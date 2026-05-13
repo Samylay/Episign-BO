@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAppState } from '../lib/state';
 import { supabase, fetchSessionStudents, type DbSessionStudent } from '../lib/supabase';
 import { type Session } from '../lib/mock-data';
@@ -21,18 +21,22 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
   const [dbStudents, setDbStudents] = useState<DbSessionStudent[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
 
-  const loadStudents = async () => {
+  // Ref so the subscription callback can read the latest students without being a dep
+  const dbStudentsRef = useRef<DbSessionStudent[]>([]);
+  useEffect(() => { dbStudentsRef.current = dbStudents; }, [dbStudents]);
+
+  const loadStudents = useCallback(async () => {
     setLoadingStudents(true);
     const data = await fetchSessionStudents(live.id);
     setDbStudents(data);
     setLoadingStudents(false);
-  };
+  }, [live.id]);
 
   useEffect(() => {
     loadStudents();
-  }, [live.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadStudents]);
 
-  // Real-time subscription for attendance inserts
+  // Real-time subscription — deps are live.id and isLive only, NOT dbStudents
   useEffect(() => {
     if (!isLive) return;
 
@@ -40,10 +44,10 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
       .channel(`attendance:${live.id}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'attendance', filter: `session_id=eq.${live.id}` },
+        { event: '*', schema: 'public', table: 'attendance', filter: `session_id=eq.${live.id}` },
         (payload) => {
           const row = payload.new as { student_id: string; slot: string };
-          const student = dbStudents.find((s) => s.student_id === row.student_id);
+          const student = dbStudentsRef.current.find((s) => s.student_id === row.student_id);
           const name = student ? `${student.first_name} ${student.last_name}` : 'Apprenant';
           pushSignature(live.id, name);
           bumpSignatureAM(live.id);
@@ -53,7 +57,7 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [live.id, isLive, dbStudents]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [live.id, isLive, loadStudents]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const signedCount   = dbStudents.filter((s) => s.am_status === 'present' || s.am_status === 'late').length;
   const enrolledCount = dbStudents.length;
