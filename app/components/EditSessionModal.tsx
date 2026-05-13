@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { T } from '../lib/tokens';
-import { supabase, fetchClasses, fetchTeachers, type DbClass, type DbTeacher } from '../lib/supabase';
+import { supabase, fetchClasses, type DbClass } from '../lib/supabase';
 import { useToast } from './Toast';
 import { useAppState } from '../lib/state';
 
@@ -32,10 +32,9 @@ const slotOptions: [Slot, string][] = [
 
 export function EditSessionModal({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
   const toast = useToast();
-  const { refreshSessions, role } = useAppState();
+  const { refreshSessions, role, dbTeachers: teachers } = useAppState();
 
-  const [classes,  setClasses]  = useState<DbClass[]>([]);
-  const [teachers, setTeachers] = useState<DbTeacher[]>([]);
+  const [classes, setClasses] = useState<DbClass[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   const [code,       setCode]       = useState('');
@@ -53,12 +52,10 @@ export function EditSessionModal({ sessionId, onClose }: { sessionId: string; on
   useEffect(() => {
     Promise.all([
       fetchClasses(),
-      fetchTeachers(),
       supabase.from('sessions').select('*').eq('id', sessionId).single(),
       supabase.from('session_classes').select('class_id').eq('session_id', sessionId),
-    ]).then(([cls, tch, { data: sess }, { data: sc }]) => {
+    ]).then(([cls, { data: sess }, { data: sc }]) => {
       setClasses(cls);
-      setTeachers(tch);
       if (sess) {
         setCode(sess.code ?? '');
         setCourseName(sess.course_name ?? '');

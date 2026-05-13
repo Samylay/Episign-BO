@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { T } from '../lib/tokens';
-import { supabase, fetchClasses, fetchTeachers, type DbClass, type DbTeacher } from '../lib/supabase';
+import { supabase, fetchClasses, type DbClass } from '../lib/supabase';
 import { useToast } from './Toast';
 import { useAppState } from '../lib/state';
 
@@ -26,10 +26,9 @@ const fieldStyle: React.CSSProperties = { marginBottom: 18 };
 
 export function CreateSessionModal({ onClose, preselectedTeacherId }: { onClose: () => void; preselectedTeacherId?: string }) {
   const toast = useToast();
-  const { refreshSessions } = useAppState();
+  const { refreshSessions, dbTeachers: teachers } = useAppState();
 
-  const [classes, setClasses]   = useState<DbClass[]>([]);
-  const [teachers, setTeachers] = useState<DbTeacher[]>([]);
+  const [classes, setClasses] = useState<DbClass[]>([]);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -46,12 +45,12 @@ export function CreateSessionModal({ onClose, preselectedTeacherId }: { onClose:
   const [saving,     setSaving]     = useState(false);
 
   useEffect(() => {
-    Promise.all([fetchClasses(), fetchTeachers()]).then(([cls, tch]) => {
-      setClasses(cls);
-      setTeachers(tch);
-      if (!teacherId && tch.length > 0) setTeacherId(preselectedTeacherId ?? tch[0].id);
-    });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    fetchClasses().then(setClasses);
+  }, []);
+
+  useEffect(() => {
+    if (!teacherId && teachers.length > 0) setTeacherId(preselectedTeacherId ?? teachers[0].id);
+  }, [teachers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleClass = (id: string) => {
     setClassIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
