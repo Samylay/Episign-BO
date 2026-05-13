@@ -59,7 +59,21 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
     return () => { supabase.removeChannel(channel); };
   }, [live.id, isLive, loadStudents]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const signedCount   = dbStudents.filter((s) => s.am_status === 'present' || s.am_status === 'late').length;
+  // Polling fallback — in case realtime replication is not enabled on the attendance table
+  useEffect(() => {
+    if (!isLive) return;
+    const interval = setInterval(loadStudents, 10000);
+    return () => clearInterval(interval);
+  }, [live.id, isLive, loadStudents]);
+
+  const isSigned = (s: DbSessionStudent) => {
+    const amOk = s.am_status === 'present' || s.am_status === 'late';
+    const pmOk = s.pm_status === 'present' || s.pm_status === 'late';
+    if (live.slot === 'morning')   return amOk;
+    if (live.slot === 'afternoon') return pmOk;
+    return amOk || pmOk;
+  };
+  const signedCount   = dbStudents.filter(isSigned).length;
   const enrolledCount = dbStudents.length;
   const missingCount  = enrolledCount - signedCount;
 
@@ -175,7 +189,7 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
           </thead>
           <tbody>
             {dbStudents.map((st) => {
-              const signed = st.am_status === 'present' || st.am_status === 'late';
+              const signed = isSigned(st);
               return (
                 <tr key={st.student_id} style={{ borderBottom: `1px solid ${T.hairlineSoft}` }}>
                   <td style={{ padding: '11px 16px', fontWeight: 600, color: T.ink }}>{st.first_name} {st.last_name}</td>
