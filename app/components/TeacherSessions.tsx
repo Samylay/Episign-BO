@@ -78,10 +78,17 @@ export function TeacherSessionsPage({ onOpen }: { onOpen: (s: Session) => void }
   );
 }
 
+function slotSigned(s: Session): number {
+  if (s.slot === 'morning')   return s.signedAM;
+  if (s.slot === 'afternoon') return s.signedPM;
+  return s.signedAM + s.signedPM;
+}
+
 function SessionCard({ session, onOpen, onEdit }: { session: Session; onOpen: () => void; onEdit: () => void }) {
   const isLive = session.status === 'in_progress';
   const isUpcoming = session.status === 'upcoming';
-  const pct = session.enrolled > 0 ? Math.round((session.signedAM / session.enrolled) * 100) : 0;
+  const signed = slotSigned(session);
+  const pct = session.enrolled > 0 ? Math.round((signed / session.enrolled) * 100) : 0;
   const cta = isLive ? 'Reprendre la session' : isUpcoming ? 'Démarrer la session' : 'Voir le détail';
   const ctaColor = isLive ? T.success : isUpcoming ? T.brand : T.ink2;
 
@@ -122,9 +129,9 @@ function SessionCard({ session, onOpen, onEdit }: { session: Session; onOpen: ()
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <span style={{ fontSize: 11.5, fontWeight: 600, color: T.ink3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Présence</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: pct >= 90 ? T.success : pct >= 70 ? T.warn : T.danger, fontVariantNumeric: 'tabular-nums' }}>{session.signedAM}/{session.enrolled} · {pct}%</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: pct >= 90 ? T.success : pct >= 70 ? T.warn : T.danger, fontVariantNumeric: 'tabular-nums' }}>{signed}/{session.enrolled} · {pct}%</span>
           </div>
-          <ProgressBar value={session.signedAM} max={session.enrolled} />
+          <ProgressBar value={signed} max={session.enrolled} />
         </div>
       )}
 
