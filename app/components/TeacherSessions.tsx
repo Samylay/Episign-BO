@@ -9,6 +9,7 @@ import { AppHeader } from './AppHeader';
 import { ProgressBar } from './ProgressBar';
 import { EmptyState } from './Modal';
 import { CreateSessionModal } from './CreateSessionModal';
+import { EditSessionModal } from './EditSessionModal';
 
 const TODAY = new Date().toISOString().split('T')[0];
 
@@ -18,6 +19,7 @@ export function TeacherSessionsPage({ onOpen }: { onOpen: (s: Session) => void }
   const { sessions, currentTeacherId } = useAppState();
   const [tab, setTab] = useState<Tab>('today');
   const [showCreate, setShowCreate] = useState(false);
+  const [editSessionId, setEditSessionId] = useState<string | null>(null);
 
   const mine = sessions.filter((s) => s.teacherId === currentTeacherId);
   const today = mine.filter((s) => s.date === TODAY);
@@ -35,6 +37,7 @@ export function TeacherSessionsPage({ onOpen }: { onOpen: (s: Session) => void }
   return (
     <>
     {showCreate && <CreateSessionModal onClose={() => setShowCreate(false)} preselectedTeacherId={currentTeacherId} />}
+    {editSessionId && <EditSessionModal sessionId={editSessionId} onClose={() => setEditSessionId(null)} />}
     <div>
       <AppHeader
         title="Mes sessions"
@@ -65,7 +68,7 @@ export function TeacherSessionsPage({ onOpen }: { onOpen: (s: Session) => void }
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 14 }}>
           {list.map((s) => (
-            <SessionCard key={s.id} session={s} onOpen={() => onOpen(s)} />
+            <SessionCard key={s.id} session={s} onOpen={() => onOpen(s)} onEdit={() => setEditSessionId(s.id)} />
           ))}
         </div>
       )}
@@ -74,7 +77,7 @@ export function TeacherSessionsPage({ onOpen }: { onOpen: (s: Session) => void }
   );
 }
 
-function SessionCard({ session, onOpen }: { session: Session; onOpen: () => void }) {
+function SessionCard({ session, onOpen, onEdit }: { session: Session; onOpen: () => void; onEdit: () => void }) {
   const isLive = session.status === 'in_progress';
   const isUpcoming = session.status === 'upcoming';
   const pct = session.enrolled > 0 ? Math.round((session.signedAM / session.enrolled) * 100) : 0;
@@ -126,6 +129,12 @@ function SessionCard({ session, onOpen }: { session: Session; onOpen: () => void
 
       <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: ctaColor }}>{cta} →</span>
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.hairline}`, background: 'rgba(255,255,255,0.8)', fontSize: 12, color: T.ink2, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
+        >
+          ✎ Modifier
+        </button>
       </div>
     </button>
   );

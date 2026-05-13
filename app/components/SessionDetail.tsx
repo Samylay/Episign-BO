@@ -9,6 +9,7 @@ import { Modal } from './Modal';
 import { T } from '../lib/tokens';
 import { CodeBadge, ClassBadge, LiveBadge } from './CodeBadge';
 import { useToast } from './Toast';
+import { EditSessionModal } from './EditSessionModal';
 
 type Slot = 'am' | 'pm';
 
@@ -31,6 +32,7 @@ export function SessionDetailPage({ session, onBack }: { session: Session; onBac
 
   const [dbStudents,    setDbStudents]    = useState<RealStudent[]>([]);
   const [loadingDb,     setLoadingDb]     = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [invalidateTarget, setInvalidateTarget] = useState<{ st: StudentRow; slot: Slot; dbId?: string } | null>(null);
   const [justifyTarget, setJustifyTarget] = useState<{ st: StudentRow; slot: Slot; dbId?: string } | null>(null);
   const [viewSignature, setViewSignature] = useState<{ st: StudentRow; slot: Slot } | null>(null);
@@ -76,6 +78,8 @@ export function SessionDetailPage({ session, onBack }: { session: Session; onBac
 
   return (
     <div>
+      {showEdit && <EditSessionModal sessionId={session.id} onClose={() => setShowEdit(false)} />}
+
       <button onClick={onBack} style={{ background: 'none', border: 'none', color: T.brand, fontSize: 13.5, cursor: 'pointer', padding: 0, marginBottom: 16, fontFamily: 'inherit', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ fontSize: 16, lineHeight: 1 }}>‹</span> Retour aux sessions
       </button>
@@ -93,12 +97,20 @@ export function SessionDetailPage({ session, onBack }: { session: Session; onBac
               <strong style={{ color: T.ink2, fontWeight: 600 }}>{session.teacher}</strong> · {session.room} · {session.date} · {session.timeRange}
             </p>
           </div>
-          <button
-            onClick={() => toast.push("Génération de la feuille d'émargement...", 'info')}
-            style={{ padding: '9px 16px', borderRadius: 10, border: `1px solid ${T.hairline}`, background: T.card, fontSize: 13, fontWeight: 600, cursor: 'pointer', color: T.ink, display: 'flex', alignItems: 'center', gap: 6, boxShadow: T.shadowSm }}
-          >
-            ⤓ Exporter PDF
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setShowEdit(true)}
+              style={{ padding: '9px 16px', borderRadius: 10, border: `1px solid ${T.hairline}`, background: T.card, fontSize: 13, fontWeight: 600, cursor: 'pointer', color: T.ink, display: 'flex', alignItems: 'center', gap: 6, boxShadow: T.shadowSm }}
+            >
+              ✎ Modifier
+            </button>
+            <button
+              onClick={() => toast.push("Génération de la feuille d'émargement...", 'info')}
+              style={{ padding: '9px 16px', borderRadius: 10, border: `1px solid ${T.hairline}`, background: T.card, fontSize: 13, fontWeight: 600, cursor: 'pointer', color: T.ink, display: 'flex', alignItems: 'center', gap: 6, boxShadow: T.shadowSm }}
+            >
+              ⤓ Exporter PDF
+            </button>
+          </div>
         </div>
       </div>
 

@@ -10,6 +10,7 @@ import { T } from '../lib/tokens';
 import { CodeBadge, ClassBadge, LiveBadge } from './CodeBadge';
 import { AppHeader } from './AppHeader';
 import { CreateSessionModal } from './CreateSessionModal';
+import { EditSessionModal } from './EditSessionModal';
 
 const statusLabel: Record<SessionStatus, string> = { in_progress: 'En cours', upcoming: 'À venir', completed: 'Terminée' };
 const statusColor: Record<SessionStatus, string> = { in_progress: T.success, upcoming: T.warn, completed: T.muted };
@@ -37,6 +38,7 @@ export function SessionsPage({ onViewSession }: { onViewSession: (s: Session) =>
   const [promoFilter, setPromoFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [editSessionId, setEditSessionId] = useState<string | null>(null);
   const [classes, setClasses] = useState<DbClass[]>([]);
 
   useEffect(() => { fetchClasses().then(setClasses); }, []);
@@ -73,6 +75,7 @@ export function SessionsPage({ onViewSession }: { onViewSession: (s: Session) =>
   return (
     <>
     {showCreate && <CreateSessionModal onClose={() => setShowCreate(false)} />}
+    {editSessionId && <EditSessionModal sessionId={editSessionId} onClose={() => setEditSessionId(null)} />}
     <div>
       <AppHeader
         title="Sessions"
@@ -136,7 +139,14 @@ export function SessionsPage({ onViewSession }: { onViewSession: (s: Session) =>
                   </td>
                   <td style={{ padding: '14px 16px' }}><ProgressBar value={s.signedAM} max={s.enrolled} /></td>
                   <td style={{ padding: '14px 16px' }}><ProgressBar value={s.signedPM} max={s.enrolled} /></td>
-                  <td style={{ padding: '14px 16px', color: T.muted }}>›</td>
+                  <td style={{ padding: '14px 16px' }} onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setEditSessionId(s.id); }}
+                      style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.hairline}`, background: T.card, fontSize: 12, color: T.ink2, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
+                    >
+                      ✎
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
