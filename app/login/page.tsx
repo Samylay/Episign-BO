@@ -46,13 +46,13 @@ export default function LoginPage() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
+        
 
         .login-root {
           min-height: 100vh;
           display: grid;
           grid-template-columns: 1fr 1fr;
-          font-family: 'DM Sans', -apple-system, sans-serif;
+          font-family: var(--font-dm-sans), -apple-system, sans-serif;
           background: #0A1B2E;
         }
 
@@ -87,7 +87,7 @@ export default function LoginPage() {
           right: -60px;
           top: 50%;
           transform: translateY(-50%);
-          font-family: 'DM Serif Display', Georgia, serif;
+          font-family: var(--font-dm-serif), Georgia, serif;
           font-size: clamp(280px, 28vw, 420px);
           line-height: 1;
           color: transparent;
@@ -128,7 +128,7 @@ export default function LoginPage() {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-family: 'DM Serif Display', serif;
+          font-family: var(--font-dm-serif), Georgia, serif;
           font-size: 18px;
           color: #fff;
           box-shadow: 0 4px 16px rgba(30,79,214,0.45);
@@ -147,7 +147,7 @@ export default function LoginPage() {
         }
 
         .left-tagline {
-          font-family: 'DM Serif Display', Georgia, serif;
+          font-family: var(--font-dm-serif), Georgia, serif;
           font-size: clamp(28px, 3vw, 40px);
           line-height: 1.18;
           color: #fff;
@@ -205,7 +205,7 @@ export default function LoginPage() {
         }
 
         .form-heading {
-          font-family: 'DM Serif Display', serif;
+          font-family: var(--font-dm-serif), Georgia, serif;
           font-size: 30px;
           color: #0A1B2E;
           letter-spacing: -0.02em;
@@ -299,7 +299,7 @@ export default function LoginPage() {
           border: 1.5px solid rgba(10,27,46,0.12);
           background: #fff;
           font-size: 14px;
-          font-family: 'DM Sans', sans-serif;
+          font-family: var(--font-dm-sans), sans-serif;
           color: #0A1B2E;
           transition: border-color 0.15s, box-shadow 0.15s;
           box-sizing: border-box;
@@ -335,7 +335,7 @@ export default function LoginPage() {
           border: none;
           background: #0A1B2E;
           color: #fff;
-          font-family: 'DM Sans', sans-serif;
+          font-family: var(--font-dm-sans), sans-serif;
           font-size: 14.5px;
           font-weight: 600;
           cursor: pointer;
