@@ -23,6 +23,7 @@ export default function LoginPage() {
     setLoading(true);
 
     const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    console.log('[login] signIn result:', { user: data?.user?.id, email: data?.user?.email, authError });
 
     if (authError || !data.user) {
       setError(authError?.message ?? 'Identifiants incorrects');
@@ -31,6 +32,7 @@ export default function LoginPage() {
     }
 
     const roleInfo = await getAuthRole(data.user.id, data.user.email ?? undefined);
+    console.log('[login] roleInfo:', roleInfo);
     if (!roleInfo) {
       setError('Compte non autorisé. Contactez un administrateur.');
       await supabase.auth.signOut();
