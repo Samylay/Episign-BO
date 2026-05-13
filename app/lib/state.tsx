@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { MOCK_ALERTS, MOCK_SESSIONS, MOCK_TEACHERS, type Alert, type AlertStatus, type Session, type Teacher } from './mock-data';
+import { type Alert, type AlertStatus, type Session, type Teacher } from './mock-data';
 import { supabase, fetchSessionsWithStats, fetchTeachers as fetchDbTeachers, dbSessionToSession, type DbTeacher, getAuthRole } from './supabase';
 
 export type AuditEntry = {
@@ -72,13 +72,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [currentTeacherId, setCurrentTeacherId] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
-  const [sessions, setSessions] = useState<Session[]>(MOCK_SESSIONS);
-  const [alerts, setAlerts] = useState<Alert[]>(MOCK_ALERTS);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [invalidations, setInvalidations] = useState<Record<string, string>>({});
   const [justifications, setJustifications] = useState<Record<string, string>>({});
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [signatureFeed, setSignatureFeed] = useState<SignatureEvent[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>(MOCK_TEACHERS);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [dbTeachers, setDbTeachers] = useState<DbTeacher[]>([]);
 
   const loadSessions = async (teacherId?: string) => {
@@ -172,8 +172,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     },
 
     resetAll: () => {
-      setSessions(MOCK_SESSIONS);
-      setAlerts(MOCK_ALERTS);
+      setSessions([]);
+      setAlerts([]);
       setInvalidations({});
       setJustifications({});
       setAudit([]);

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { type Session, type SessionStatus } from '../lib/mock-data';
 import { useAppState } from '../lib/state';
+import { fetchClasses, type DbClass } from '../lib/supabase';
 import { ProgressBar } from './ProgressBar';
 import { EmptyState } from './Modal';
 import { T } from '../lib/tokens';
@@ -36,6 +37,9 @@ export function SessionsPage({ onViewSession }: { onViewSession: (s: Session) =>
   const [promoFilter, setPromoFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [classes, setClasses] = useState<DbClass[]>([]);
+
+  useEffect(() => { fetchClasses().then(setClasses); }, []);
 
   const filtered = sessions.filter((s) => {
     if (!withinRange(s.date, range)) return false;
@@ -48,7 +52,7 @@ export function SessionsPage({ onViewSession }: { onViewSession: (s: Session) =>
     return true;
   });
 
-  const promos = ['all', ...Array.from(new Set(sessions.map((s) => s.classLabel.split(' ')[0])))];
+  const promos = Array.from(new Set(classes.map((c) => c.promo))).sort();
 
   const rangeOptions: [RangeFilter, string][] = [
     ['all', 'Tout'],
@@ -92,7 +96,7 @@ export function SessionsPage({ onViewSession }: { onViewSession: (s: Session) =>
         </select>
         <select value={promoFilter} onChange={(e) => setPromoFilter(e.target.value)} style={selectStyle}>
           <option value="all">Toutes promotions</option>
-          {promos.filter((p) => p !== 'all').map((p) => <option key={p} value={p}>{p}</option>)}
+          {promos.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>
 

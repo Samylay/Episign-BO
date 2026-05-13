@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { generateStudents, type Session, type StudentRow } from '../lib/mock-data';
+import { type Session, type StudentRow } from '../lib/mock-data';
 import { supabase, fetchSessionStudents, type DbSessionStudent } from '../lib/supabase';
 import { useAppState, cellKeyOf, type AuditEntry } from '../lib/state';
 import { StatusBadge } from './StatusBadge';
@@ -11,8 +11,6 @@ import { CodeBadge, ClassBadge, LiveBadge } from './CodeBadge';
 import { useToast } from './Toast';
 
 type Slot = 'am' | 'pm';
-
-const isRealSession = (id: string) => id.length > 8;
 
 type RealStudent = DbSessionStudent & { rowIndex: number };
 
@@ -38,25 +36,19 @@ export function SessionDetailPage({ session, onBack }: { session: Session; onBac
   const [viewSignature, setViewSignature] = useState<{ st: StudentRow; slot: Slot } | null>(null);
   const [studentSearch, setStudentSearch] = useState('');
 
-  const real = isRealSession(session.id);
-
   useEffect(() => {
-    if (!real) return;
     setLoadingDb(true);
     fetchSessionStudents(session.id).then((rows) => {
       setDbStudents(rows.map((r, i) => ({ ...r, rowIndex: i })));
       setLoadingDb(false);
     });
-  }, [session.id, real]);
+  }, [session.id]);
 
-  const students: StudentRow[] = real
-    ? dbStudents.map((s) => dbToStudentRow(s, s.rowIndex))
-    : generateStudents(session.id, session.enrolled, session.signedAM, session.signedPM, session.classLabel);
+  const students: StudentRow[] = dbStudents.map((s) => dbToStudentRow(s, s.rowIndex));
 
   const sessionAudit = audit.filter((a) => a.sessionId === session.id);
 
   const dbStatusOf = (st: StudentRow, slot: Slot): string | null => {
-    if (!real) return null;
     const db = dbStudents[st.id];
     return slot === 'am' ? (db?.am_status ?? null) : (db?.pm_status ?? null);
   };
@@ -75,9 +67,9 @@ export function SessionDetailPage({ session, onBack }: { session: Session; onBac
     ? students.filter((s) => s.name.toLowerCase().includes(studentSearch.toLowerCase()) || s.email.toLowerCase().includes(studentSearch.toLowerCase()))
     : students;
 
-  const signedAM = real ? dbStudents.filter((s) => s.am_status === 'present' || s.am_status === 'late').length : session.signedAM;
-  const signedPM = real ? dbStudents.filter((s) => s.pm_status === 'present' || s.pm_status === 'late').length : session.signedPM;
-  const enrolled = real ? dbStudents.length : session.enrolled;
+  const signedAM = dbStudents.filter((s) => s.am_status === 'present' || s.am_status === 'late').length;
+  const signedPM = dbStudents.filter((s) => s.pm_status === 'present' || s.pm_status === 'late').length;
+  const enrolled = dbStudents.length;
 
   const amPct = enrolled > 0 ? Math.round((signedAM / enrolled) * 100) : 0;
   const pmPct = enrolled > 0 ? Math.round((signedPM / enrolled) * 100) : 0;
@@ -156,8 +148,8 @@ export function SessionDetailPage({ session, onBack }: { session: Session; onBac
                       amStatus={amStatus}
                       pmStatus={pmStatus}
                       slot={session.slot}
-                      onInvalidate={(slot) => setInvalidateTarget({ st, slot, dbId: real ? dbStudents[st.id]?.student_id : undefined })}
-                      onJustify={(slot) => setJustifyTarget({ st, slot, dbId: real ? dbStudents[st.id]?.student_id : undefined })}
+                      onInvalidate={(slot) => setInvalidateTarget({ st, slot, dbId: dbStudents[st.id]?.student_id })}
+                      onJustify={(slot) => setJustifyTarget({ st, slot, dbId: dbStudents[st.id]?.student_id })}
                     />
                   </td>
                 </tr>
@@ -176,7 +168,7 @@ export function SessionDetailPage({ session, onBack }: { session: Session; onBac
           confirmLabel="Confirmer l'invalidation"
           confirmColor={T.danger}
           onConfirm={async (reason) => {
-            if (real && invalidateTarget.dbId) {
+            if (invalidateTarget.dbId) {
               const { error } = await supabase.rpc('moderate_attendance', {
                 p_session_id: session.id,
                 p_student_id: invalidateTarget.dbId,
@@ -204,7 +196,7 @@ export function SessionDetailPage({ session, onBack }: { session: Session; onBac
           confirmLabel="Enregistrer la justification"
           confirmColor={T.brand}
           onConfirm={async (reason) => {
-            if (real && justifyTarget.dbId) {
+            if (justifyTarget.dbId) {
               const { error } = await supabase.rpc('moderate_attendance', {
                 p_session_id: session.id,
                 p_student_id: justifyTarget.dbId,

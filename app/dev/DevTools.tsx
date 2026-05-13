@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppState, type Role } from '../lib/state';
-import { STUDENT_NAMES } from '../lib/mock-data';
+const STUDENT_NAMES = ['Alice Martin', 'Hugo Bernard', 'Léa Thomas', 'Omar Diallo', 'Sofia Nguyen', 'Maxime Lefebvre', 'Camille Dupont', 'Rayan Benali', 'Eva Petit', 'Théo Rousseau', 'Jade Moreau', 'Lucas Simon', 'Inès Gérard', 'Adrien Faure', 'Manon Blanc', 'Kylian Henry', 'Pauline Robert', 'Noah Michel'];
 import { T } from '../lib/tokens';
 
 export function DevTools() {

@@ -3,13 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useAppState } from '../lib/state';
 import { supabase, fetchSessionStudents, type DbSessionStudent } from '../lib/supabase';
-import { generateStudents, type Session } from '../lib/mock-data';
+import { type Session } from '../lib/mock-data';
 import { T } from '../lib/tokens';
 import { CodeBadge, ClassBadge, LiveBadge } from './CodeBadge';
 import { useToast } from './Toast';
 import { StatusBadge } from './StatusBadge';
-
-const isRealSession = (id: string) => id.length > 8;
 
 export function TeacherLivePage({ session, onBack }: { session: Session; onBack: () => void }) {
   const { sessions, signatureFeed, setSessionStatus, pushSignature, bumpSignatureAM } = useAppState();
@@ -24,7 +22,6 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
   const [loadingStudents, setLoadingStudents] = useState(false);
 
   const loadStudents = async () => {
-    if (!isRealSession(live.id)) return;
     setLoadingStudents(true);
     const data = await fetchSessionStudents(live.id);
     setDbStudents(data);
@@ -37,7 +34,7 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
 
   // Real-time subscription for attendance inserts
   useEffect(() => {
-    if (!isRealSession(live.id) || !isLive) return;
+    if (!isLive) return;
 
     const channel = supabase
       .channel(`attendance:${live.id}`)
@@ -58,14 +55,8 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
     return () => { supabase.removeChannel(channel); };
   }, [live.id, isLive, dbStudents]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Mock students fallback (non-DB sessions)
-  const mockStudents = generateStudents(live.id, live.enrolled, live.signedAM, 0, live.classLabel);
-
-  const displayStudents = isRealSession(live.id) ? dbStudents : mockStudents;
-  const signedCount  = isRealSession(live.id)
-    ? dbStudents.filter((s) => s.am_status === 'present' || s.am_status === 'late').length
-    : mockStudents.filter((s) => s.signedAM).length;
-  const enrolledCount = isRealSession(live.id) ? dbStudents.length : live.enrolled;
+  const signedCount   = dbStudents.filter((s) => s.am_status === 'present' || s.am_status === 'late').length;
+  const enrolledCount = dbStudents.length;
   const missingCount  = enrolledCount - signedCount;
 
   const myFeed = signatureFeed.filter((e) => e.sessionId === live.id).slice(0, 12);
@@ -75,15 +66,6 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
     toast.push('Session démarrée', 'success');
   };
 
-  const simulate = () => {
-    if (!isRealSession(live.id)) {
-      const missing = mockStudents.filter((s) => !s.signedAM);
-      if (!missing[0]) return;
-      bumpSignatureAM(live.id);
-      pushSignature(live.id, missing[0].name);
-      toast.push(`${missing[0].name} a signé`, 'success');
-    }
-  };
 
   const cardCode = live.teacherCardCode ?? '——————';
 
@@ -151,9 +133,6 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
           <div style={{ background: T.card, borderRadius: 16, padding: 20, boxShadow: T.shadowMd, flex: 1, minHeight: 120 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
               <h3 style={{ fontSize: 13.5, fontWeight: 600, color: T.ink, margin: 0 }}>Arrivées récentes</h3>
-              {!isRealSession(live.id) && isLive && missingCount > 0 && (
-                <button onClick={simulate} title="DEV — simuler une signature" style={{ padding: '4px 10px', borderRadius: 6, border: `1px dashed ${T.hairline}`, background: 'transparent', fontSize: 11, color: T.muted, cursor: 'pointer', fontFamily: 'inherit' }}>+ Simuler</button>
-              )}
             </div>
             {myFeed.length === 0 ? (
               <div style={{ fontSize: 12.5, color: T.muted, textAlign: 'center', padding: '20px 0' }}>
@@ -191,7 +170,7 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
             </tr>
           </thead>
           <tbody>
-            {isRealSession(live.id) ? dbStudents.map((st) => {
+            {dbStudents.map((st) => {
               const signed = st.am_status === 'present' || st.am_status === 'late';
               return (
                 <tr key={st.student_id} style={{ borderBottom: `1px solid ${T.hairlineSoft}` }}>
@@ -201,14 +180,7 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
                   <td style={{ padding: '11px 16px' }}><StatusBadge status={signed ? 'signed' : 'missing'} /></td>
                 </tr>
               );
-            }) : mockStudents.map((st) => (
-              <tr key={st.id} style={{ borderBottom: `1px solid ${T.hairlineSoft}` }}>
-                <td style={{ padding: '11px 16px', fontWeight: 600, color: T.ink }}>{st.name}</td>
-                <td style={{ padding: '11px 16px', color: T.ink3, fontSize: 13 }}>{st.email}</td>
-                <td style={{ padding: '11px 16px', color: T.ink3, fontSize: 13 }}>{st.classLabel}</td>
-                <td style={{ padding: '11px 16px' }}><StatusBadge status={st.signedAM ? 'signed' : 'missing'} /></td>
-              </tr>
-            ))}
+            })}
           </tbody>
         </table>
       </div>
