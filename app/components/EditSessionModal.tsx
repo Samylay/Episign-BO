@@ -4,10 +4,20 @@ import { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { T } from '../lib/tokens';
 import { supabase, fetchClasses, type DbClass } from '../lib/supabase';
+import { parisDate, parisTime, parisInputToISO } from '../lib/paris-time';
 import { useToast } from './Toast';
 import { useAppState } from '../lib/state';
 
 type Slot = 'morning' | 'afternoon' | 'full';
+
+function deriveSlot(startTime: string, endTime: string): Slot {
+  const startH = parseInt(startTime.split(':')[0], 10);
+  const endH   = parseInt(endTime.split(':')[0], 10);
+  const endM   = parseInt(endTime.split(':')[1], 10);
+  if (startH >= 13) return 'afternoon';
+  if (endH < 13 || (endH === 13 && endM === 0)) return 'morning';
+  return 'full';
+}
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '10px 14px', borderRadius: 10,
@@ -24,11 +34,6 @@ const labelStyle: React.CSSProperties = {
 
 const fieldStyle: React.CSSProperties = { marginBottom: 18 };
 
-const slotOptions: [Slot, string][] = [
-  ['morning',   'Matin (AM)'],
-  ['afternoon', 'Après-midi (PM)'],
-  ['full',      'Journée complète'],
-];
 
 export function EditSessionModal({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
   const toast = useToast();
@@ -43,7 +48,6 @@ export function EditSessionModal({ sessionId, onClose }: { sessionId: string; on
   const [date,       setDate]       = useState('');
   const [startTime,  setStartTime]  = useState('');
   const [endTime,    setEndTime]    = useState('');
-  const [slot,       setSlot]       = useState<Slot>('morning');
   const [topic,      setTopic]      = useState('');
   const [teacherId,  setTeacherId]  = useState('');
   const [classIds,   setClassIds]   = useState<string[]>([]);
@@ -62,12 +66,11 @@ export function EditSessionModal({ sessionId, onClose }: { sessionId: string; on
         setRoom(sess.room ?? '');
         setTopic(sess.topic ?? '');
         setTeacherId(sess.teacher_id ?? '');
-        setSlot((sess.slot as Slot) ?? 'morning');
         const starts = new Date(sess.starts_at);
         const ends   = new Date(sess.ends_at);
-        setDate(sess.starts_at.split('T')[0]);
-        setStartTime(`${String(starts.getHours()).padStart(2, '0')}:${String(starts.getMinutes()).padStart(2, '0')}`);
-        setEndTime(`${String(ends.getHours()).padStart(2, '0')}:${String(ends.getMinutes()).padStart(2, '0')}`);
+        setDate(parisDate(starts));
+        setStartTime(parisTime(starts));
+        setEndTime(parisTime(ends));
       }
       if (sc) setClassIds(sc.map((r: { class_id: string }) => r.class_id));
       setLoadingData(false);
@@ -84,8 +87,9 @@ export function EditSessionModal({ sessionId, onClose }: { sessionId: string; on
     if (!valid) return;
     setSaving(true);
 
-    const startsAt = `${date}T${startTime}:00`;
-    const endsAt   = `${date}T${endTime}:00`;
+    const startsAt = parisInputToISO(date, startTime);
+    const endsAt   = parisInputToISO(date, endTime);
+    const slot     = deriveSlot(startTime, endTime);
 
     const { error: updErr } = await supabase
       .from('sessions')
@@ -138,8 +142,8 @@ export function EditSessionModal({ sessionId, onClose }: { sessionId: string; on
             <input style={inputStyle} value={topic} onChange={(e) => setTopic(e.target.value)} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0 12px' }}>
-            <div style={{ ...fieldStyle, gridColumn: '1 / 2' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
+            <div style={fieldStyle}>
               <label style={labelStyle}>Date</label>
               <input type="date" style={inputStyle} value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>
@@ -150,12 +154,6 @@ export function EditSessionModal({ sessionId, onClose }: { sessionId: string; on
             <div style={fieldStyle}>
               <label style={labelStyle}>Fin</label>
               <input type="time" style={inputStyle} value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Créneau</label>
-              <select style={{ ...inputStyle, cursor: 'pointer' }} value={slot} onChange={(e) => setSlot(e.target.value as Slot)}>
-                {slotOptions.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-              </select>
             </div>
           </div>
 

@@ -195,6 +195,8 @@ export async function fetchAlertsWithDetails(): Promise<DbAlertDetail[]> {
 
 // ---- Conversion: DbSessionStats → Session (mock-data.ts compatible) ----
 
+import { parisDate, parisTimeRange } from './paris-time';
+
 export type SessionStatus = 'in_progress' | 'upcoming' | 'completed';
 
 export function dbSessionToSession(db: DbSessionStats): import('./mock-data').Session {
@@ -207,9 +209,6 @@ export function dbSessionToSession(db: DbSessionStats): import('./mock-data').Se
   else if (now < starts)            status = 'upcoming';
   else                              status = 'completed';
 
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  const fmt = (d: Date)   => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-
   return {
     id:             db.id,
     code:           db.code,
@@ -217,8 +216,8 @@ export function dbSessionToSession(db: DbSessionStats): import('./mock-data').Se
     teacher:        `${db.teacher_first_name} ${db.teacher_last_name}`,
     teacherId:      db.teacher_id,
     room:           db.room,
-    date:           db.starts_at.split('T')[0],
-    timeRange:      `${fmt(starts)} – ${fmt(ends)}`,
+    date:           parisDate(starts),
+    timeRange:      parisTimeRange(starts, ends),
     slot:           db.slot,
     status,
     classLabel:     db.classes.map((c) => c.label).join(', ') || '—',

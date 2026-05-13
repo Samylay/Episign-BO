@@ -144,7 +144,7 @@ export function TeacherLivePage({ session, onBack }: { session: Session; onBack:
                   <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, background: T.successBg, animation: 'epi-toast-in 0.25s ease-out' }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: T.success, flexShrink: 0 }} />
                     <span style={{ fontSize: 13, fontWeight: 600, color: T.ink, flex: 1 }}>{e.studentName}</span>
-                    <span style={{ fontSize: 11, color: T.muted, fontVariantNumeric: 'tabular-nums' }}>{new Date(e.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                    <span style={{ fontSize: 11, color: T.muted, fontVariantNumeric: 'tabular-nums' }}>{new Date(e.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Paris' })}</span>
                   </div>
                 ))}
               </div>

@@ -11,11 +11,12 @@ import { CodeBadge, ClassBadge, LiveBadge } from './CodeBadge';
 import { AppHeader } from './AppHeader';
 import { CreateSessionModal } from './CreateSessionModal';
 import { EditSessionModal } from './EditSessionModal';
+import { todayParis } from '../lib/paris-time';
 
 const statusLabel: Record<SessionStatus, string> = { in_progress: 'En cours', upcoming: 'À venir', completed: 'Terminée' };
 const statusColor: Record<SessionStatus, string> = { in_progress: T.success, upcoming: T.warn, completed: T.muted };
 
-const TODAY = new Date().toISOString().split('T')[0];
+const TODAY = todayParis();
 
 type RangeFilter = 'all' | 'day' | 'week' | 'month';
 type StatusFilter = 'all' | SessionStatus;

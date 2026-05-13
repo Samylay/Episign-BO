@@ -10,8 +10,9 @@ import { ProgressBar } from './ProgressBar';
 import { EmptyState } from './Modal';
 import { CreateSessionModal } from './CreateSessionModal';
 import { EditSessionModal } from './EditSessionModal';
+import { todayParis } from '../lib/paris-time';
 
-const TODAY = new Date().toISOString().split('T')[0];
+const TODAY = todayParis();
 
 type Tab = 'today' | 'upcoming' | 'past';
 

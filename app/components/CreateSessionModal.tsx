@@ -6,8 +6,18 @@ import { T } from '../lib/tokens';
 import { supabase, fetchClasses, type DbClass } from '../lib/supabase';
 import { useToast } from './Toast';
 import { useAppState } from '../lib/state';
+import { todayParis, parisInputToISO } from '../lib/paris-time';
 
 type Slot = 'morning' | 'afternoon' | 'full';
+
+function deriveSlot(startTime: string, endTime: string): Slot {
+  const startH = parseInt(startTime.split(':')[0], 10);
+  const endH   = parseInt(endTime.split(':')[0], 10);
+  const endM   = parseInt(endTime.split(':')[1], 10);
+  if (startH >= 13) return 'afternoon';
+  if (endH < 13 || (endH === 13 && endM === 0)) return 'morning';
+  return 'full';
+}
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '10px 14px', borderRadius: 10,
@@ -30,7 +40,7 @@ export function CreateSessionModal({ onClose, preselectedTeacherId }: { onClose:
 
   const [classes, setClasses] = useState<DbClass[]>([]);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayParis();
 
   const [code,       setCode]       = useState('');
   const [courseName, setCourseName] = useState('');
@@ -38,7 +48,6 @@ export function CreateSessionModal({ onClose, preselectedTeacherId }: { onClose:
   const [date,       setDate]       = useState(today);
   const [startTime,  setStartTime]  = useState('09:00');
   const [endTime,    setEndTime]    = useState('12:30');
-  const [slot,       setSlot]       = useState<Slot>('morning');
   const [topic,      setTopic]      = useState('');
   const [teacherId,  setTeacherId]  = useState(preselectedTeacherId ?? '');
   const [classIds,   setClassIds]   = useState<string[]>([]);
@@ -63,8 +72,9 @@ export function CreateSessionModal({ onClose, preselectedTeacherId }: { onClose:
     if (!valid) return;
     setSaving(true);
 
-    const startsAt = `${date}T${startTime}:00`;
-    const endsAt   = `${date}T${endTime}:00`;
+    const startsAt = parisInputToISO(date, startTime);
+    const endsAt   = parisInputToISO(date, endTime);
+    const slot     = deriveSlot(startTime, endTime);
 
     const { data: session, error: sessErr } = await supabase
       .from('sessions')
@@ -89,12 +99,6 @@ export function CreateSessionModal({ onClose, preselectedTeacherId }: { onClose:
     await refreshSessions();
     onClose();
   };
-
-  const slotOptions: [Slot, string][] = [
-    ['morning',   'Matin (AM)'],
-    ['afternoon', 'Après-midi (PM)'],
-    ['full',      'Journée complète'],
-  ];
 
   return (
     <Modal width={600} onClose={onClose}>
@@ -124,8 +128,8 @@ export function CreateSessionModal({ onClose, preselectedTeacherId }: { onClose:
           <input style={inputStyle} value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Introduction aux closures et au pattern MVVM" />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0 12px' }}>
-          <div style={{ ...fieldStyle, gridColumn: '1 / 2' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
+          <div style={fieldStyle}>
             <label style={labelStyle}>Date</label>
             <input type="date" style={inputStyle} value={date} onChange={(e) => setDate(e.target.value)} required />
           </div>
@@ -136,12 +140,6 @@ export function CreateSessionModal({ onClose, preselectedTeacherId }: { onClose:
           <div style={fieldStyle}>
             <label style={labelStyle}>Fin</label>
             <input type="time" style={inputStyle} value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
-          </div>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Créneau</label>
-            <select style={{ ...inputStyle, cursor: 'pointer' }} value={slot} onChange={(e) => setSlot(e.target.value as Slot)}>
-              {slotOptions.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-            </select>
           </div>
         </div>
 

@@ -2,12 +2,13 @@
 
 import { useAppState } from '../lib/state';
 import { EmptyState } from './Modal';
+import { todayParis } from '../lib/paris-time';
 import { T } from '../lib/tokens';
 import { CodeBadge, ClassBadge, LiveBadge } from './CodeBadge';
 import { AppHeader } from './AppHeader';
 
-const TODAY = new Date().toISOString().split('T')[0];
-const TODAY_LABEL = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const TODAY = todayParis();
+const TODAY_LABEL = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });
 
 export function DashboardPage() {
   const { alerts, sessions } = useAppState();

@@ -351,7 +351,7 @@ function AuditLog({ entries }: { entries: AuditEntry[] }) {
                 <div style={{ fontSize: 12, color: T.ink3, marginTop: 2, fontStyle: 'italic' }}>« {e.reason} »</div>
               </div>
               <div style={{ fontSize: 11, color: T.muted, flexShrink: 0, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                <div>{new Date(e.at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</div>
+                <div>{new Date(e.at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Paris' })}</div>
                 <div style={{ marginTop: 2 }}>par {e.by}</div>
               </div>
             </div>
